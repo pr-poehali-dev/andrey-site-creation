@@ -59,6 +59,22 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     }
   };
 
+  const handleNumberClick = (num: string) => {
+    if (step === 'phone') {
+      const currentNumbers = phone.replace(/\D/g, '');
+      if (currentNumbers.length < 11) {
+        setPhone(formatPhone(currentNumbers + num));
+      }
+    }
+  };
+
+  const handleBackspace = () => {
+    if (step === 'phone') {
+      const currentNumbers = phone.replace(/\D/g, '');
+      setPhone(formatPhone(currentNumbers.slice(0, -1)));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -89,7 +105,44 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                     className="text-lg"
                   />
                 </div>
-                <Button onClick={handleSendCode} className="w-full" size="lg">
+                <div className="grid grid-cols-3 gap-2 mt-6">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                    <Button
+                      key={num}
+                      variant="outline"
+                      size="lg"
+                      onClick={() => handleNumberClick(num.toString())}
+                      className="h-14 text-xl font-semibold"
+                    >
+                      {num}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={handleBackspace}
+                    className="h-14 text-xl font-semibold"
+                  >
+                    <Icon name="Delete" size={24} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => handleNumberClick('0')}
+                    className="h-14 text-xl font-semibold"
+                  >
+                    0
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    disabled
+                    className="h-14 text-xl font-semibold opacity-0"
+                  >
+                    
+                  </Button>
+                </div>
+                <Button onClick={handleSendCode} className="w-full mt-4" size="lg">
                   Получить код
                   <Icon name="ArrowRight" size={20} className="ml-2" />
                 </Button>
