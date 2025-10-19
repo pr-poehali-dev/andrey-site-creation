@@ -1,212 +1,291 @@
-import { useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 
+interface Message {
+  id: number;
+  text: string;
+  sender: 'me' | 'other';
+  timestamp: string;
+  read?: boolean;
+}
+
+interface Chat {
+  id: number;
+  name: string;
+  avatar: string;
+  lastMessage: string;
+  timestamp: string;
+  unread: number;
+  online: boolean;
+}
+
+const mockChats: Chat[] = [
+  {
+    id: 1,
+    name: 'Анна Петрова',
+    avatar: 'АП',
+    lastMessage: 'Отлично, спасибо! Как у тебя дела?',
+    timestamp: '14:23',
+    unread: 2,
+    online: true,
+  },
+  {
+    id: 2,
+    name: 'Дмитрий Соколов',
+    avatar: 'ДС',
+    lastMessage: 'Отправил тебе файлы по проекту',
+    timestamp: '13:45',
+    unread: 0,
+    online: true,
+  },
+  {
+    id: 3,
+    name: 'Мария Иванова',
+    avatar: 'МИ',
+    lastMessage: 'Созвонимся завтра?',
+    timestamp: 'Вчера',
+    unread: 1,
+    online: false,
+  },
+  {
+    id: 4,
+    name: 'Команда разработки',
+    avatar: 'КР',
+    lastMessage: 'Алексей: Пушу в мастер',
+    timestamp: 'Вчера',
+    unread: 0,
+    online: false,
+  },
+];
+
+const mockMessages: Record<number, Message[]> = {
+  1: [
+    { id: 1, text: 'Привет! Как дела?', sender: 'other', timestamp: '14:20', read: true },
+    { id: 2, text: 'Привет! Всё отлично, работаю над новым проектом', sender: 'me', timestamp: '14:21', read: true },
+    { id: 3, text: 'Круто! Расскажи подробнее', sender: 'other', timestamp: '14:22', read: true },
+    { id: 4, text: 'Делаю чат-приложение с красивым интерфейсом', sender: 'me', timestamp: '14:22', read: true },
+    { id: 5, text: 'Отлично, спасибо! Как у тебя дела?', sender: 'other', timestamp: '14:23', read: false },
+  ],
+  2: [
+    { id: 1, text: 'Посмотри документацию', sender: 'other', timestamp: '13:40', read: true },
+    { id: 2, text: 'Хорошо, спасибо!', sender: 'me', timestamp: '13:42', read: true },
+    { id: 3, text: 'Отправил тебе файлы по проекту', sender: 'other', timestamp: '13:45', read: true },
+  ],
+  3: [
+    { id: 1, text: 'Созвонимся завтра?', sender: 'other', timestamp: 'Вчера', read: false },
+  ],
+  4: [
+    { id: 1, text: 'Кто будет делать ревью?', sender: 'other', timestamp: 'Вчера', read: true },
+    { id: 2, text: 'Я посмотрю', sender: 'me', timestamp: 'Вчера', read: true },
+  ],
+};
+
 export default function Index() {
-  const [text, setText] = useState('https://poehali.dev');
-  const [size, setSize] = useState(256);
-  const [fgColor, setFgColor] = useState('#222222');
-  const [bgColor, setBgColor] = useState('#FFFFFF');
-  const [level, setLevel] = useState<'L' | 'M' | 'Q' | 'H'>('M');
+  const [selectedChat, setSelectedChat] = useState<number>(1);
+  const [messages, setMessages] = useState<Message[]>(mockMessages[1]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const downloadQR = () => {
-    const canvas = document.getElementById('qr-code') as HTMLCanvasElement;
-    if (!canvas) return;
-
-    const svg = canvas.querySelector('svg');
-    if (!svg) return;
-
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'qrcode.svg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleChatSelect = (chatId: number) => {
+    setSelectedChat(chatId);
+    setMessages(mockMessages[chatId] || []);
+  };
+
+  const handleSendMessage = () => {
+    if (!inputMessage.trim()) return;
+
+    const newMessage: Message = {
+      id: messages.length + 1,
+      text: inputMessage,
+      sender: 'me',
+      timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      read: true,
+    };
+
+    setMessages([...messages, newMessage]);
+    setInputMessage('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const currentChat = mockChats.find(c => c.id === selectedChat);
+  const filteredChats = mockChats.filter(chat =>
+    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold font-serif tracking-tight">Генератор QR-кодов</h1>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid lg:grid-cols-2 gap-12">
-          <div className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-serif">Настройки QR-кода</CardTitle>
-                <CardDescription>Укажите данные и настройте внешний вид</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="text">Текст или URL</Label>
-                  <Input
-                    id="text"
-                    placeholder="Введите текст или ссылку"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Размер: {size}px</Label>
-                  <Slider
-                    value={[size]}
-                    onValueChange={(value) => setSize(value[0])}
-                    min={128}
-                    max={512}
-                    step={32}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="level">Уровень коррекции ошибок</Label>
-                  <Select value={level} onValueChange={(val) => setLevel(val as 'L' | 'M' | 'Q' | 'H')}>
-                    <SelectTrigger id="level">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="L">Низкий (7%)</SelectItem>
-                      <SelectItem value="M">Средний (15%)</SelectItem>
-                      <SelectItem value="Q">Высокий (25%)</SelectItem>
-                      <SelectItem value="H">Максимальный (30%)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fg-color">Цвет кода</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="fg-color"
-                        type="color"
-                        value={fgColor}
-                        onChange={(e) => setFgColor(e.target.value)}
-                        className="w-16 h-10 p-1 cursor-pointer"
-                      />
-                      <Input
-                        type="text"
-                        value={fgColor}
-                        onChange={(e) => setFgColor(e.target.value)}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="bg-color">Цвет фона</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="bg-color"
-                        type="color"
-                        value={bgColor}
-                        onChange={(e) => setBgColor(e.target.value)}
-                        className="w-16 h-10 p-1 cursor-pointer"
-                      />
-                      <Input
-                        type="text"
-                        value={bgColor}
-                        onChange={(e) => setBgColor(e.target.value)}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-serif">Примеры использования</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <Icon name="Link" size={20} className="text-primary mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Ссылки на сайты</p>
-                    <p className="text-sm text-muted-foreground">https://example.com</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Icon name="Mail" size={20} className="text-primary mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Email</p>
-                    <p className="text-sm text-muted-foreground">mailto:info@example.com</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Icon name="Phone" size={20} className="text-primary mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Телефон</p>
-                    <p className="text-sm text-muted-foreground">tel:+79001234567</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Icon name="Wifi" size={20} className="text-primary mt-0.5" />
-                  <div>
-                    <p className="font-semibold">WiFi</p>
-                    <p className="text-sm text-muted-foreground">WIFI:T:WPA;S:NetworkName;P:Password;;</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+    <div className="h-screen flex bg-background">
+      <div className="w-80 border-r border-border flex flex-col">
+        <div className="p-4 border-b border-border">
+          <h1 className="text-2xl font-bold font-serif mb-4">Чаты</h1>
+          <div className="relative">
+            <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <Input
+              placeholder="Поиск..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
+        </div>
 
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-serif">Ваш QR-код</CardTitle>
-                <CardDescription>Предпросмотр и скачивание</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex justify-center p-8 bg-muted rounded-lg" id="qr-code">
-                  {text && (
-                    <QRCodeSVG
-                      value={text}
-                      size={size}
-                      fgColor={fgColor}
-                      bgColor={bgColor}
-                      level={level}
-                      includeMargin={true}
-                    />
-                  )}
-                </div>
-
-                <Button onClick={downloadQR} className="w-full" size="lg">
-                  <Icon name="Download" className="mr-2" size={18} />
-                  Скачать QR-код (SVG)
-                </Button>
-
-                <div className="p-4 bg-secondary rounded-lg space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Icon name="Info" size={16} className="text-primary" />
-                    <span className="font-semibold">Совет</span>
+        <ScrollArea className="flex-1">
+          <div className="p-2">
+            {filteredChats.map((chat) => (
+              <button
+                key={chat.id}
+                onClick={() => handleChatSelect(chat.id)}
+                className={`w-full p-3 rounded-lg hover:bg-secondary transition-colors text-left ${
+                  selectedChat === chat.id ? 'bg-secondary' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="relative">
+                    <Avatar>
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {chat.avatar}
+                      </AvatarFallback>
+                    </Avatar>
+                    {chat.online && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+                    )}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold truncate">{chat.name}</p>
+                      <span className="text-xs text-muted-foreground">{chat.timestamp}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
+                      {chat.unread > 0 && (
+                        <Badge className="ml-2 h-5 min-w-[20px] flex items-center justify-center rounded-full px-1.5">
+                          {chat.unread}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        {currentChat && (
+          <>
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar>
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {currentChat.avatar}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{currentChat.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    QR-код сохраняется в векторном формате SVG для лучшего качества печати. 
-                    Рекомендуем тестировать готовые коды перед использованием.
+                    {currentChat.online ? 'онлайн' : 'был(а) недавно'}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </main>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="icon">
+                  <Icon name="Phone" size={20} />
+                </Button>
+                <Button variant="ghost" size="icon">
+                  <Icon name="Video" size={20} />
+                </Button>
+                <Button variant="ghost" size="icon">
+                  <Icon name="MoreVertical" size={20} />
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1 p-6">
+              <div className="space-y-4 max-w-4xl mx-auto">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'} animate-fade-in`}
+                  >
+                    <div
+                      className={`max-w-md px-4 py-2 rounded-2xl ${
+                        message.sender === 'me'
+                          ? 'bg-primary text-primary-foreground rounded-br-sm'
+                          : 'bg-secondary text-foreground rounded-bl-sm'
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed">{message.text}</p>
+                      <div className="flex items-center gap-1 mt-1 justify-end">
+                        <span className={`text-xs ${message.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                          {message.timestamp}
+                        </span>
+                        {message.sender === 'me' && (
+                          <Icon 
+                            name={message.read ? 'CheckCheck' : 'Check'} 
+                            size={14} 
+                            className={message.read ? 'text-blue-400' : 'text-primary-foreground/70'}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            <div className="p-4 border-t border-border">
+              <div className="max-w-4xl mx-auto">
+                <div className="flex items-end gap-2">
+                  <Button variant="ghost" size="icon" className="shrink-0">
+                    <Icon name="Paperclip" size={20} />
+                  </Button>
+                  <div className="flex-1 relative">
+                    <Input
+                      placeholder="Введите сообщение..."
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      className="pr-20"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2"
+                    >
+                      <Icon name="Smile" size={20} />
+                    </Button>
+                  </div>
+                  <Button onClick={handleSendMessage} size="icon" className="shrink-0">
+                    <Icon name="Send" size={20} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
